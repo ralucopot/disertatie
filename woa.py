@@ -12,6 +12,10 @@ class Whale:
         self.fitness_fct = None
         self.fitness_value = sys.float_info.max
 
+    def __str__(self):
+        msg = f"Transfer energy array: {self.transf_energy} and fitness value: {self.fitness_value}"
+        return msg
+
     def initRandomEnergy(self, num_households, charge_max, discharge_max):
 
         # assign random values
@@ -21,20 +25,21 @@ class Whale:
 
 
 class WOA:
-    def __init__(self, num_iter, charge_max, discharge_max, fitnessFct):
+    def __init__(self, num_iter, charge_max, discharge_max, fitnessFct = None):
         self.num_iter = num_iter
         self.charge_max = charge_max
         self.discharge_max = discharge_max
         self.fitnessFct = fitnessFct
+        self.currentTime = 0
 
 
     def computeFitness(self, whale:Whale):
-        fitVal = self.fitnessFct()
+        fitVal = self.fitnessFct(whale.transf_energy)
         whale.fitness_value = fitVal
 
         
 
-    def computeBest(self, population_size: int, num_households:int, charge_max:float, discharge_max:float, max_iter:int):
+    def computeBest(self, population_size: int, num_households:int, charge_max:float, discharge_max:float, max_iter:int, best=None):
 
         # init random instance
         
@@ -48,7 +53,10 @@ class WOA:
 
 
         # Define and initialize best individual
-        best_whale = Whale(num_households, charge_max, discharge_max)
+        if best == None:
+            best_whale = Whale(num_households, charge_max, discharge_max)
+        else:
+            best_whale = best
         print(best_whale)
 
         # find the best individual in the initial population
@@ -107,5 +115,5 @@ class WOA:
                     best_whale.fitness_value = population[i].fitness_value
                     best_whale.transf_energy = copy.copy(population[i].transf_energy)
             curr_iter += 1
-
+        self.currentTime += 1
         return best_whale
