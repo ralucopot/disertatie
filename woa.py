@@ -2,10 +2,11 @@ import math
 import random
 import sys
 import copy
+import matplotlib.pyplot as plt
 
 class Whale:
 
-    def __init__(self, num_households, charge_max, discharge_max):
+    def __init__(self, num_households, charge_max, discharge_max, ):
         self.ch_max = charge_max
         self.dis_max = discharge_max
         self.transf_energy = [0.0 for i in range(num_households)]
@@ -37,9 +38,9 @@ class WOA:
         fitVal = self.fitnessFct(whale.transf_energy)
         whale.fitness_value = fitVal
 
-        
+    
 
-    def computeBest(self, population_size: int, num_households:int, charge_max:float, discharge_max:float, max_iter:int, best=None):
+    def computeBest(self, population_size: int, num_households:int, charge_max:float, discharge_max:float, max_iter:int):
 
         # init random instance
         
@@ -53,11 +54,8 @@ class WOA:
 
 
         # Define and initialize best individual
-        if best == None:
-            best_whale = Whale(num_households, charge_max, discharge_max)
-        else:
-            best_whale = best
-        print(best_whale)
+        best_whale = Whale(num_households, charge_max, discharge_max)
+        # print(best_whale)
 
         # find the best individual in the initial population
         for i in range(population_size):
@@ -71,6 +69,8 @@ class WOA:
         C = 0.0
         D = [0.0 for i in range(num_households)]
         b = 1
+
+        allFitness = []
 
         while curr_iter < max_iter:
             
@@ -114,6 +114,17 @@ class WOA:
                 if (population[i].fitness_value < best_whale.fitness_value):
                     best_whale.fitness_value = population[i].fitness_value
                     best_whale.transf_energy = copy.copy(population[i].transf_energy)
+
+            allFitness.append(best_whale.fitness_value)
+            
             curr_iter += 1
+        plt.figure(figsize=(8, 5))
+        plt.plot(allFitness, color="red", marker='o')
+        plt.title("Basic Array Plot")
+        plt.xlabel("time")
+        plt.ylabel("fitness value")
+        plt.grid(True, alpha=0.3)
+        plt.savefig(f"fitness_time_{self.currentTime}")
         self.currentTime += 1
+
         return best_whale
