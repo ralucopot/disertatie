@@ -181,6 +181,7 @@ class WOA:
         self.minSoC = minSoC
         self.fitnessFct = fitnessFct
         self.currentTime = 0
+        self.cost = 0
 
 
     def computeFitness(self, whale:Whale):
@@ -193,6 +194,7 @@ class WOA:
 
         # init random instance
         f = open("initEnergy.txt", "w")
+        tolerance = 1e-5
 
         # Create the population of random whales
         population:Whale = [None for i in range(population_size)]
@@ -233,7 +235,13 @@ class WOA:
 
         allFitness = []
 
+        old_fitness = 0
+        same_fitness_num_iter = 300
+        num_repeats = same_fitness_num_iter
+
         while curr_iter < max_iter:
+
+            old_fitness = best_whale.fitness_value
             
             for i in range(population_size):
                 # Initialize parameters
@@ -241,7 +249,9 @@ class WOA:
                 p = random.uniform(0.0, 1.0)
                 r_1 = random.uniform(0.0, 1.0)
                 r_2 = random.uniform(0.0, 1.0)
-                a = 2 * (1 - curr_iter / max_iter)
+                # a = 2 * (1 - curr_iter / max_iter) #linear
+                a = 2 * (1 - (curr_iter / max_iter)**2) #quadratic
+                # a = 2 * np.exp(-3 * (curr_iter / max_iter)) # exponential decay
                 A = 2 * a - r_1 * a 
                 C = 2 * r_2
                 new_whale:Whale = Whale(num_households, charge_max, discharge_max, currentSoC, 0)
@@ -280,6 +290,18 @@ class WOA:
                     best_whale.transf_energy = copy.copy(population[i].transf_energy)
 
             allFitness.append(best_whale.fitness_value)
+
+            errorFactor = abs(best_whale.fitness_value) - abs(old_fitness)
+            if abs(errorFactor) < 1e-20:
+                num_repeats -= 1
+                if num_repeats == 0:
+                    break
+            else:
+                num_repeats = same_fitness_num_iter
+
+
+            # if abs(abs(best_whale.fitness_value) - abs(old_fitness)) < 1e-100 and curr_iter > 100:
+                # break
             
             curr_iter += 1
         plt.figure(figsize=(8, 5))
