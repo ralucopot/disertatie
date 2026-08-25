@@ -69,11 +69,12 @@ class Whale:
         msg = f"Transfer energy array: {self.transf_energy} and fitness value: {self.fitness_value}"
         return msg
 
-    def initRandomEnergy(self, num_households, charge_max, discharge_max):
+    def initRandomEnergy(self, num_households, battRate):
         # assign random values
         rnd_instance = random.Random(0)
         for i in range(num_households):
-            self.transf_energy[i] = ((charge_max[i] - discharge_max[i]) * self.rnd.random() + discharge_max[i])
+            # self.transf_energy[i] = ((charge_max[i] - discharge_max[i]) * self.rnd.random() + discharge_max[i])
+            self.transf_energy[i] = random.uniform(-battRate[i], battRate[i])
 
 
 
@@ -122,40 +123,68 @@ class Whale:
 
 
 
-    def checkTransfEnergy_option3(self, num_households, currentBatt, battCapacity):
+    def checkTransfEnergy_option3(self, num_households, currentBatt, battRate):
         # 10 <= SoC <= 95; eff charge = 0.9
         # Option 2: limit the SoC to the maximum/minimum allowed value
         for i in range(num_households):
-            newSoC = 0
-            newBatt = currentBatt[i] + self.transf_energy[i] 
-            if self.transf_energy[i] > 0:
-                newSoC = self.SoC[i] + 0.9 * self.transf_energy[i]
-                if newSoC > 95 or newBatt > (0.95 * battCapacity[i]):
-                    (self.SoC[i], self.transf_energy[i]) = generateNewValue(newSoC, self.SoC[i], self.transf_energy[i], self.ch_max, self.dis_max, currentBatt[i], battCapacity[i])
+            curr_max_discharge = round(max(-battRate[i], self.dis_max[i] - currentBatt[i]), 2)
+            curr_max_charge = round(min(battRate[i], self.ch_max[i] - currentBatt[i]), 2)
+            # print(self.transf_energy[i])
+            newTransf = round(self.transf_energy[i], 2)
+            # newTransf = 0
 
+            newSoC = self.SoC[i]
+            
+            if abs(newTransf) > battRate[i]:
+                if newTransf > 0:
+                    newTransf = battRate[i]
+                    newSoC = self.SoC[i] + 0.9 * newTransf
                 else:
-                    self.SoC[i] = newSoC
-            elif self.transf_energy[i] < 0:
-                newSoC = self.SoC[i] - 0.9 * abs(self.transf_energy[i])
-                if newSoC < 10 or newBatt < (0.01 * battCapacity[i]):
-                    (self.SoC[i], self.transf_energy[i]) = generateNewValue(newSoC, self.SoC[i], self.transf_energy[i], self.ch_max, self.dis_max, currentBatt[i], battCapacity[i])
-                else:
-                    self.SoC[i] = newSoC
+                    newTransf = -battRate[i]
+                    newSoC = self.SoC[i] - 0.9 * abs(newTransf)
+
+            newBattLevel = round(currentBatt[i] + newTransf, 2)
+
+            if newBattLevel > round(self.ch_max[i], 2):
+                newTransf = curr_max_charge
+                # newSoC = self.SoC[i] + 0.9 * newTransf
+            elif newBattLevel < round(self.dis_max[i], 2):
+                newTransf = curr_max_discharge
+                # newSoC = self.SoC[i] - 0.9 * abs(newTransf)
+
+            if newTransf > 0:
+                newSoC = self.SoC[i] + 0.9 * newTransf
+            else:
+                # print(newTransf)
+                newSoC = self.SoC[i] - 0.9 * abs(newTransf)
+            # else:
+            #     self.transf_energy[i] = round(self.transf_energy[i], 2)
+            #     continue
+            self.SoC[i] = newSoC
+            self.transf_energy[i] = newTransf
+           
         
         # for i in range(num_households):
 
-    def checkTransfEnergy_option4(self, num_households, currentBatt):
+    def checkTransfEnergy_option4(self, num_households, currentBatt, battRate):
+
         for i in range(num_households):
-            curr_max_discharge = self.dis_max[i] - currentBatt[i] 
-            curr_max_charge = self.ch_max[i] - currentBatt[i]
-            newBattLevel = currentBatt[i] + self.transf_energy[i]
+            curr_max_discharge = round(max(-battRate[i], self.dis_max[i] - currentBatt[i]), 2)
+            curr_max_charge = round(min(battRate[i], self.ch_max[i] - currentBatt[i]), 2)
+            newBattLevel = round(currentBatt[i] + self.transf_energy[i], 2)
             isValueChanged = False
-            while (newBattLevel > self.ch_max[i]) or (newBattLevel < self.dis_max[i]):
+            if round(abs(self.transf_energy[i]), 2) > round(battRate[i], 2):
+                newTransf = round(self.transf_energy[i], 2)
+            else:
+                newTransf = 0
+            while (round(newBattLevel, 2) > round(self.ch_max[i], 2)) or (round(newBattLevel, 2) < round(self.dis_max[i], 2)) or (round(abs(newTransf), 2) > battRate[i]):
                 isValueChanged = True
-                newTransf = random.uniform(curr_max_discharge, curr_max_charge)
+                newTransf = round(random.uniform(curr_max_discharge, curr_max_charge), 2)
                 newBattLevel = currentBatt[i] + newTransf
+                newBattLevel = round(newBattLevel, 2)
 
             if not isValueChanged:
+                self.transf_energy[i] = round(self.transf_energy[i], 2)
                 continue
             if newTransf == 0:
                 self.transf_energy[i] = 0
@@ -167,7 +196,7 @@ class Whale:
             self.SoC[i] = newSoC
             self.transf_energy[i] = newTransf
 
-                
+            
 
 
 
@@ -190,14 +219,14 @@ class WOA:
 
     
 
-    def computeBest(self, population_size: int, num_households:int, maxSoC:float, minSoC:float, max_iter:int, currentSoC:list, currentBatt:list, battCapacity:list):
+    def computeBest(self, population_size: int, num_households:int, maxSoC:float, minSoC:float, max_iter:int, currentSoC:list, currentBatt:list, battCapacity:list, battRate:list):
 
         # init random instance
         f = open("initEnergy.txt", "w")
         tolerance = 1e-5
 
         # Create the population of random whales
-        population:Whale = [None for i in range(population_size)]
+        population:list[Whale] = [None for i in range(population_size)]
         charge_max = []
         discharge_max = []
         for i in range(num_households):
@@ -208,9 +237,9 @@ class WOA:
 
         for i in range(population_size):
             population[i] = Whale(num_households, charge_max, discharge_max, currentSoC, i)
-            population[i].initRandomEnergy(num_households, charge_max, discharge_max)
+            population[i].initRandomEnergy(num_households, battRate)
             # population[i].checkTransfEnergy_option3(num_households, currentBatt, battCapacity)
-            population[i].checkTransfEnergy_option4(num_households, currentBatt)
+            population[i].checkTransfEnergy_option3(num_households, currentBatt, battRate)
             print("Initial energy\n", file=f)
             print(population[i].transf_energy,file=f)
             
@@ -224,8 +253,9 @@ class WOA:
         for i in range(population_size):
             self.computeFitness(population[i])
             if population[i].fitness_value < best_whale.fitness_value:
-                best_whale.fitness_value = population[i].fitness_value
-                best_whale.transf_energy = copy.copy(population[i].transf_energy)
+                best_whale = copy.deepcopy(population[i]) 
+                # best_whale.fitness_value = population[i].fitness_value
+                # best_whale.transf_energy = copy.copy(population[i].transf_energy)
 
         curr_iter = 0
         A = 0.0
@@ -236,7 +266,7 @@ class WOA:
         allFitness = []
 
         old_fitness = 0
-        same_fitness_num_iter = 300
+        same_fitness_num_iter = 600
         num_repeats = same_fitness_num_iter
 
         while curr_iter < max_iter:
@@ -262,36 +292,45 @@ class WOA:
                         for j in range(num_households):
                             D[j] = C * best_whale.transf_energy[j] - population[i].transf_energy[j]
                             new_whale.transf_energy[j] = best_whale.transf_energy[j] - A * D[j]
+                            # new_whale.transf_energy[j] = new_whale.transf_energy[j]
                     else:
                         rnd_idx = random.randrange(0, population_size - 1)
                         random_whale = copy.deepcopy(population[rnd_idx]) 
                         for j in range(num_households):
                             D[j] = C * random_whale.transf_energy[j] - population[i].transf_energy[j]
                             new_whale.transf_energy[j] = random_whale.transf_energy[j] - A * D[j]
+                            # new_whale.transf_energy[j] = new_whale.transf_energy[j]
                 else:
                     for j in range(num_households):
                         D[j] = best_whale.transf_energy[j] - population[i].transf_energy[j]
                         new_whale.transf_energy[j] = D[j] * math.pow(math.e, (b + l)) * math.cos(2 * math.pi * l) + best_whale.transf_energy[j]
+                        # new_whale.transf_energy[j] = new_whale.transf_energy[j]
 
-                new_whale.checkTransfEnergy_option4(num_households, currentBatt)
+                new_whale.checkTransfEnergy_option3(num_households, currentBatt, battRate)
 
-                population[i].transf_energy = list(new_whale.transf_energy)
+                # population[i].transf_energy = list(new_whale.transf_energy)
+                population[i] = copy.deepcopy(new_whale)  
 
 
             # Update transf_energy for current population 
             for i in range(population_size):
                 for j in range(num_households):
-                    if (population[i].transf_energy[j] + currentBatt[j] > (battCapacity[j] * maxSoC / 100) or 
-                        population[i].transf_energy[j] + currentBatt[j] < (battCapacity[j] * minSoC / 100)):
-                        raise Exception("Violated battery constrains")
+                    batt = round(population[i].transf_energy[j] + currentBatt[j], 2)
+                    max_charge = round(battCapacity[j] * maxSoC / 100, 2)
+                    min_charge = round(battCapacity[j] * minSoC / 100, 2)
+                    if (batt > max_charge or batt < min_charge):
+                        raise Exception(f"Violated battery constrains {batt}, max soc = {max_charge}, min soc = {min_charge}")
                 self.computeFitness(population[i])
                 if (population[i].fitness_value < best_whale.fitness_value):
-                    best_whale.fitness_value = population[i].fitness_value
-                    best_whale.transf_energy = copy.copy(population[i].transf_energy)
+                    best_whale = copy.deepcopy(population[i]) 
+                    # best_whale.fitness_value = population[i].fitness_value
+                    # best_whale.transf_energy = copy.copy(population[i].transf_energy)
 
             allFitness.append(best_whale.fitness_value)
 
             errorFactor = abs(best_whale.fitness_value) - abs(old_fitness)
+            # if self.currentTime < 6 and best_whale.fitness_value == 0:
+            #     break
             if abs(errorFactor) < 1e-20:
                 num_repeats -= 1
                 if num_repeats == 0:
