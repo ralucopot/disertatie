@@ -211,15 +211,18 @@ class WOA:
         self.fitnessFct = fitnessFct
         self.currentTime = 0
         self.cost = 0
+        self.w1 = self.w2 = self.w3 = self.w4 = self.l1 = self.l2 = self.l3 = self.l4 = 1
+        # self.fitness_val = []
 
 
     def computeFitness(self, whale:Whale):
-        fitVal = self.fitnessFct(whale.transf_energy)
+        fitVal = self.fitnessFct(whale.transf_energy, self.w1, self.w2, self.w3, self.w4, self.l1, self.l2, self.l3, self.l4)
         whale.fitness_value = fitVal
+        # self.fitness_val = list(fitVal)
 
     
 
-    def computeBest(self, population_size: int, num_households:int, maxSoC:float, minSoC:float, max_iter:int, currentSoC:list, currentBatt:list, battCapacity:list, battRate:list):
+    def computeBest(self, population_size: int, num_households:int, maxSoC:float, minSoC:float, max_iter:int, b:int, currentSoC:list, currentBatt:list, battCapacity:list, battRate:list):
 
         # init random instance
         f = open("initEnergy.txt", "w")
@@ -261,12 +264,12 @@ class WOA:
         A = 0.0
         C = 0.0
         D = [0.0 for i in range(num_households)]
-        b = 1
+        # b = 1
 
         allFitness = []
 
         old_fitness = 0
-        same_fitness_num_iter = 600
+        same_fitness_num_iter = 100
         num_repeats = same_fitness_num_iter
 
         while curr_iter < max_iter:
